@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from keys import keys
 
 def login():
-    print sys.path
     CONSUMER_KEY = keys['consumer_key']
     CONSUMER_SECRET = keys['consumer_secret']
     ACCESS_TOKEN = keys['access_token']
@@ -60,22 +59,39 @@ def getText():
 
 #Plots a color
 def showColor(color):
-    fig = plt.figure(1, facecolor=color)
+    fig = plt.figure(1, facecolor=color.keys()[0])
+    fig.canvas.set_window_title(color.values()[0].pop())
     plt.show()
     
-if __name__ == "__main__":
-    
-    #Some sanity checking 
-    a=RGB2List("#333A4A")
-    b=RGB2List("#333A40")
-    c=RGB2List("#FFFFFF")
+def initData():
     vealesColorMap=readColorMap("Veale's color map.csv", 2)
-    print getColorDistance(a,b)
-    print getColorDistance(a,c)
-    print getColorDistance(b,c)
-    print getColorDistance(c,b)
-    print vealesColorMap
-
+    
+    return [vealesColorMap]
+if __name__ == "__main__":
+    vealesColorMap=initData()[0]
+    #The following retrieves the color of everycolorbots last tweet
+    api=login()
+    latest=api.user_timeline(id="everycolorbot", count=10)
+    lastTweet=[]
+    for status in latest:
+        lastTweet=status.text.split(' ')
+        #Change rgb representation
+        lastTweet[0]='#'+lastTweet[0][2:]
+        print lastTweet
+        closestColor={"#000000": set(['death black', 'pitch black'])}
+        closestDist=getColorDistance(RGB2List(closestColor.keys()[0]), RGB2List(lastTweet[0]))
+        for key in vealesColorMap.keys():
+            dist=getColorDistance(RGB2List(key), RGB2List(lastTweet[0]))
+            if dist<closestDist:
+                closestDist=dist
+                closestColor={key:vealesColorMap[key]}
+        print closestColor
+        print getColorDistance(RGB2List(closestColor.keys()[0]), RGB2List(lastTweet[0]))
+        #Show closest color to everybots latest tweet
+        showColor(closestColor)
+        #Show everycolorbots last tweets color
+        showColor({lastTweet[0]:set(lastTweet[1])})
+        
 #Test code, all functional but obsolete
 ##    api=login()
 ##    i=1
