@@ -34,11 +34,64 @@ def readColorMap(filename, idcol):
 def getColorDistance(first, second):
     return(math.sqrt((first[0]-second[0])**2+(first[1]-second[1])**2+(first[2]-second[2])**2))
 
+
+#Distances of individual RGB components from another RGB color
+def getCompDist(first, second):
+    return[(first[0]-second[0]),(first[1]-second[1]),(first[2]-second[2])]
+    
+#Euclidian distance betveen YUV colorspaces U and V values
+def getUVDistance(first, second):
+    return(math.sqrt((first[1]-second[1])**2+(first[2]-second[2])**2))
+
+#YUV conversion  from rgb colorspace from wikipedia
+def RGB2YUV(rgb):
+    Wr=0.299
+    Wg=0.587
+    Wb=0.114
+    Umax=0.436
+    Vmax=0.615
+    if len(rgb)==7:
+        R=int(rgb[1:3],16)
+        G=int(rgb[3:5],16)
+        B=int(rgb[5:7],16)
+    Y=R*Wr+G*Wg+B*Wb
+    U=Umax*(B-Y)/(1-Wb)
+    V=Vmax*(R-Y)/(1-Wr)
+    return [Y,U,V]
+
+#From YUV space to RGB space
+def YUV2RGB(YUV):
+    Wr=0.299
+    Wg=0.587
+    Wb=0.114
+    Umax=0.436
+    Vmax=0.615
+    Y=YUV[0]
+    U=YUV[1]
+    V=YUV[2]
+    R=int(Y+V*((1-Wr)/Vmax))
+    G=int(Y-U*((Wb*(1-Wb))/(Umax*Wg))-V*((Wr*(1-Wr))/(Vmax*Wg)))
+    B=int(Y+U*((1-Wb)/Umax))
+    if R>255:
+        R=255
+    if G>255:
+        G=255
+    if B>255:
+        B=255
+    return List2RGB([R,G,B])
+
 #Cast rgb hex code to int list.
 def RGB2List(rgb):
     if len(rgb)==7:
         return (int(rgb[1:3],16),int(rgb[3:5],16),int(rgb[5:7],16))
-    else: return 0
+    else: return (0,0,0)
+    
+#Cast a list of rgb values to hex code
+def List2RGB(rgblist):
+    if len(rgblist)==3:
+        return '#'+format(rgblist[0],'x')+format(rgblist[1],'x')+format(rgblist[2],'x')
+    else: return "#000000"
+
 
 #search function
 def readTweets(api, query):
@@ -56,17 +109,26 @@ def sendPrivate(api, message, user):
 def getText():
     response = urllib2.urlopen('http://python.org/')
     html = response.read()
+    
+#Match the luma of the two colors
+def matchY(first, second):
+    source=RGB2YUV(first)
+    target=RGB2YUV(second)
+    correction=target[0]-source[0]
+    target[0]=source[0]
+    return [YUV2RGB(target), correction]
 
 #Plots a color
-def showColor(color):
-    fig = plt.figure(1, facecolor=color.keys()[0])
-    fig.canvas.set_window_title(color.values()[0].pop())
+def showColor(color1, color2):
+    fig = plt.figure(1, facecolor=color1.keys()[0])
+    fig.canvas.set_window_title(color1.values()[0].pop())
+    ax = fig.add_subplot(1,1,1, axisbg=color2.keys()[0], label='everybot color')
     plt.show()
     
 def initData():
     vealesColorMap=readColorMap("Veale's color map.csv", 2)
-    
     return [vealesColorMap]
+
 if __name__ == "__main__":
     vealesColorMap=initData()[0]
     #The following retrieves the color of everycolorbots last tweet
@@ -77,20 +139,38 @@ if __name__ == "__main__":
         lastTweet=status.text.split(' ')
         #Change rgb representation
         lastTweet[0]='#'+lastTweet[0][2:]
-        print lastTweet
-        closestColor={"#000000": set(['death black', 'pitch black'])}
-        closestDist=getColorDistance(RGB2List(closestColor.keys()[0]), RGB2List(lastTweet[0]))
+        #print lastTweet
+        closestColor={"#000000": set(['pitch black'])}
+        
+        #Test with rgb and euc-distance
+##        closestDist=getColorDistance(RGB2List(closestColor.keys()[0]), RGB2List(lastTweet[0]))
+##        for key in vealesColorMap.keys():
+##            dist=getColorDistance(RGB2List(key), RGB2List(lastTweet[0]))
+##            if dist<closestDist:
+##                closestDist=dist
+##                closestColor={key:vealesColorMap[key]}
+
+        closestDist=getUVDistance(RGB2YUV(closestColor.keys()[0]), RGB2YUV(lastTweet[0]))
         for key in vealesColorMap.keys():
-            dist=getColorDistance(RGB2List(key), RGB2List(lastTweet[0]))
+            dist=getUVDistance(RGB2YUV(key), RGB2YUV(lastTweet[0]))
             if dist<closestDist:
                 closestDist=dist
                 closestColor={key:vealesColorMap[key]}
-        print closestColor
-        print getColorDistance(RGB2List(closestColor.keys()[0]), RGB2List(lastTweet[0]))
+##        #print closestColor
+##        #print getColorDistance(RGB2List(closestColor.keys()[0]), RGB2List(lastTweet[0]))
+##        #print getCompDist(RGB2YUV(closestColor.keys()[0]), RGB2YUV(lastTweet[0]))
+##        #print getUVDistance(RGB2YUV(closestColor.keys()[0]), RGB2YUV(lastTweet[0]))
+        
+        
         #Show closest color to everybots latest tweet
-        showColor(closestColor)
-        #Show everycolorbots last tweets color
-        showColor({lastTweet[0]:set(lastTweet[1])})
+        
+        #Match luma to ecb-color, store correction amount.
+        matchedY, correction=matchY(lastTweet[0],closestColor.keys()[0])
+        #print correction
+        #If the correction wasn't too drastic and the color was close enough, show color.
+        if math.sqrt(correction**2)<20 and getUVDistance(RGB2YUV(closestColor.keys()[0]), RGB2YUV(lastTweet[0]))<15:
+            showColor({matchedY:closestColor.values()[0]}, {lastTweet[0]:set(lastTweet[1])})
+
         
 #Test code, all functional but obsolete
 ##    api=login()
