@@ -129,8 +129,17 @@ def initData():
     vealesColorMap=readColorMap("Veale's color map.csv", 2)
     return [vealesColorMap]
 
+def blendColors(first,second, ratio):
+    yuv1=RGB2YUV(first[0])
+    yuv2=RGB2YUV(second[0])
+    resultName=first[1].pop().split(' ')[0]+' '+second[1].pop().split(' ')[0]
+    resultColor=YUV2RGB([(yuv1[0]*ratio+yuv2[0]*(1-ratio))/2, (yuv1[1]*ratio+yuv2[1]*(1-ratio))/2,(yuv1[2]*ratio+yuv2[2]*(1-ratio))/2])
+    return {resultColor:set([resultName])}
+
 if __name__ == "__main__":
     vealesColorMap=initData()[0]
+    print vealesColorMap.items()[0]
+    showColor(blendColors(vealesColorMap.items()[0],vealesColorMap.items()[10], 0.8), {vealesColorMap.items()[10][0]:vealesColorMap.items()[0][1].pop()})
     #The following retrieves the color of everycolorbots last tweet
     api=login()
     latest=api.user_timeline(id="everycolorbot", count=10)
