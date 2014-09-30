@@ -189,17 +189,42 @@ def matchY(first, second):
     return [YUV2RGB(target), correction]
 
 def getRandom(lista):
-        return lista[random.randrange(len(lista))]
+    sortedLista = sorted(lista.items(), key=operator.itemgetter(1))
+    listsum=sum(lista.values())
+    item=sortedLista[0][0]
+    if len(sortedLista)>1:
+        i=random.randrange(listsum)
+        j=0
+        while i>0:
+            item=sortedLista[j][0]
+            i-=sortedLista[j][1]
+            j+=1
+    return item
+    return sortedLista[random.randrange(len(sortedLista))][0]
+
+def getBaseColor(lista):
+    return lista[0]
     
 def blendColors(first,second, ratio,rgb, cMap):
-    if ratio<0.5:
+    if ratio>0.5:
         tit=second
         second=first
         first=tit
-    resultName=getRandom(cMap[first][1])+' '+getRandom(cMap[second][1])
-    print cMap[first][1], cMap[second][1]
+    a=getRandom(cMap[first][1])
+    b=getRandom(cMap[second][1])
+    d=getBaseColor(cMap[second])
+##    if a[len(a)-1]==b[0] and len(b)>1:
+##        c=a+" "+b
+##    else: 
+    c=a+" "+b+" "+d
+    resultName=c
     resultColor=rgb
-    print first, second, ratio, resultColor,resultName
+    ci=RGB2CIE(first)
+    cj=RGB2CIE(second)
+    A=Point(ci[0],ci[1],ci[2])
+    B=Point(cj[0],cj[1],cj[2])
+    dist=getPointDistance(A,B)
+    print first, second, ratio, dist, resultColor,resultName
     return {resultColor:set([resultName])}
     
 
@@ -229,6 +254,7 @@ def getBlendOfColors(color, cMap):
                 ratio= d2/(d1+d2)
                 blend= CIE2RGB([AxB.x, AxB.y,AxB.z])
                 #print color1, color2, ratio, dist
-    return [color1, color2, ratio, blend, bestDist]
+                abDist=getPointDistance(A,B)
+    return [color1, color2, ratio, blend, bestDist, abDist]
 
 
