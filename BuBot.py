@@ -34,6 +34,9 @@ def readColorMap(filename, idcol):
             table[id][1][row[0]]=1
     return table
 
+#reads the readymades and organizes them to a data structure. 
+#a lot of pointer code but essentially i just split the readymades into components and 
+#store them into relevant lists.
 def readReadymades(readymades, cMap):
     table={}
     lines=list()
@@ -60,12 +63,14 @@ def readReadymades(readymades, cMap):
 def readTweets(api, query):
     #read all tweets that satisfy serch conditions
     return api.search(query, lang='en')
+
 #update status
 def updateStatus(api, status):
     api.update_status(status)
+    
 #send private messages
-def sendPrivate(api, message, user):
-    api.update_status(user+" "+message)
+def sendPrivate(api, user, message):
+    api.send_direct_message(user=user, text=message)
 
 #Retrieve content from internet
 #Not needed atm
@@ -73,13 +78,14 @@ def getText():
     response = urllib2.urlopen('http://python.org/')
     html = response.read()
     
-#Plots a color
+#Plots a color used for sanity checking the colorblending
 def showColor(color1, color2):
     fig = plt.figure(1, facecolor=color1.keys()[0])
     fig.canvas.set_window_title(color1.values()[0].copy().pop())
     ax = fig.add_subplot(1,1,1, axisbg=color2.keys()[0], label='everybot color')
     plt.show()
     
+#initializes the data structure for the color names
 def initData():
     cMap=readColorMap("Veale's color map.csv", 2)
     rMs=readReadymades("Veale's bracketed color bigrams.csv", cMap)
@@ -90,84 +96,46 @@ def initData():
                 del cMap[i][1][j]
     return cMap
 
+#main function
 if __name__ == "__main__":
+    
     cMap=initData()
-    #The following retrieves the color of everycolorbots last tweet
-    with open("everycolorbot tweets.csv") as f:
-    #skip headers
-        line = next(f).rstrip().split("\t")
-        for line in f:
-            color='#'+line.rstrip().split("\t")[0][2:]
-            [a,b,c,d,e,f]=ct.getBlendOfColors(color,cMap)
-            if e<1 and f<100: #e is the color difference <1 is unrecognizable.
-                showColor(ct.blendColors(a,b,c, d, cMap), {color:'test'})
-##    api=login()
-##    latest=api.user_timeline(id="everycolorbot", count=10)
-##    lastTweet=[]
-##    for status in latest:
-##        lastTweet=status.text.split(' ')
-##        #Change rgb representation
-##        lastTweet[0]='#'+lastTweet[0][2:]
-##        [a,b,c,d, e]=ct.getBlendOfColors(lastTweet[0], cMap)
-##        if e<1: #e is the color difference <1 is unrecognizable.
-##            showColor(ct.blendColors(a,b,c, d, cMap), {lastTweet[0]:'test'})
+    api=login()
+    
+    while 1==1:
+        #Try to get the last tweet, name the color and send the color name as a private message.
+        try:
+            latest=api.user_timeline(id="everycolorbot", count=1)
+            lastTweet=[]
+            for status in latest:
+                lastTweet=status.text.split(' ')
+                
+                #Change rgb representation 0x to #
+                lastTweet[0]='#'+lastTweet[0][2:]
+                
+                #Get the color mix
+                [color1,color2,ratio,blendedColor,colorDistance,componentDistance]=ct.getBlendOfColors(lastTweet[0],cMap)
+                
+                #wellness function, if color difference is too great or the distance of the blending colors
+                #or the blending ratio is too small skip the tweet
+                if colorDistance<2 and componentDistance<100:
+                    if ratio>0.2:
+                        #get the color name
+                        suggestion=ct.blendColors(color1,color2,ratio, blendedColor, cMap).values()[0].pop()
+                        print "Regarding your last tweet. I think the color looks a bit like "+ suggestion
+                        #comment the next line if you don't want to stop the bot from sending replys to ecb
+                        updateStatus(api, "@everycolorbot "+"Regarding your last tweet. I think the color looks a bit like "+ suggestion)
+                        #uncomment the next line for sanitycheck
+                        #showColor(ct.blendColors(color1,color2,ratio, blendedColor, cMap), {lastTweet[0]:'tweet'})
+                        
+        #in case of error, wait a minute and retry.
+        except tweepy.error.TweepError as error: 
+            print error
+            print "error, trying again in 5 minutes"
+            time.sleep(300)
+            continue
         
-        #Test with rgb and euc-distance
-##        closestDist=getColorDistance(RGB2List(closestColor.keys()[0]), RGB2List(lastTweet[0]))
-##        for key in vealesColorMap.keys():
-##            dist=getColorDistance(RGB2List(key), RGB2List(lastTweet[0]))
-##            if dist<closestDist:
-##                closestDist=dist
-##                closestColor={key:vealesColorMap[key]}
-##
-##        closestDist=getUVDistance(RGB2YUV(closestColor.keys()[0]), RGB2YUV(lastTweet[0]))
-##        for key in vealesColorMap.keys():
-##            dist=getUVDistance(RGB2YUV(key), RGB2YUV(lastTweet[0]))
-##            if dist<closestDist:
-##                closestDist=dist
-##                closestColor={key:vealesColorMap[key]}
-##        #print closestColor
-##        #print getColorDistance(RGB2List(closestColor.keys()[0]), RGB2List(lastTweet[0]))
-##        #print getCompDist(RGB2YUV(closestColor.keys()[0]), RGB2YUV(lastTweet[0]))
-##        #print getUVDistance(RGB2YUV(closestColor.keys()[0]), RGB2YUV(lastTweet[0]))
-##        
-##        
-##        #Show closest color to everybots latest tweet
-##        
-##        #Match luma to ecb-color, store correction amount.
-##        matchedY, correction=matchY(lastTweet[0],closestColor.keys()[0])
-##        #print correction
-##        #If the correction wasn't too drastic and the color was close enough, show color.
-##        if math.sqrt(correction**2)<20 and getUVDistance(RGB2YUV(closestColor.keys()[0]), RGB2YUV(lastTweet[0]))<15:
-##            showColor({matchedY:closestColor.values()[0]}, {lastTweet[0]:set(lastTweet[1])})
-##
-##        
-#Test code, all functional but obsolete
-##    api=login()
-##    i=1
-##    while i==1:
-##        r=random.random()
-##        if r<0.5:
-##            statuses=readTweets(api, '"my mom"')
-##        else:
-##            statuses=readTweets(api, '"my dog"')
-##        #getText()
-##        if statuses:
-##            for status in statuses:
-##                if "RT" and "@" not in status.text:
-##                    if "http" not in status.text:
-##                        if len(status.text)<120:
-##                            if r<0.5:
-##                                text=status.text.encode('ascii', 'replace').split("#")[0]
-##                                text=text.lower().replace("dad", "shaver")
-##                                print text.replace("my mom", "my twitterbot")
-##                                #updateStatus(api, text.replace("my mom", "my twitterbot"))
-##                            else:
-##                                text=status.text.encode('ascii', 'replace').split("#")[0]
-##                                print text.lower().replace("my dog", "my twitterbot")
-##                                #updateStatus(api, text.lower().replace("my dog", "my bot"))
-##                            break;
-##        for k in range(10):
-##            time.sleep(3)
-##            print 'tic %i' % k
-##    
+        #If succesful, wait for an hour and a half
+        for k in range(90):
+            time.sleep(60)
+            print 'tic %i' % k

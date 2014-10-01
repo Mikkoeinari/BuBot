@@ -200,7 +200,6 @@ def getRandom(lista):
             i-=sortedLista[j][1]
             j+=1
     return item
-    return sortedLista[random.randrange(len(sortedLista))][0]
 
 def getBaseColor(lista):
     return lista[0]
@@ -213,9 +212,6 @@ def blendColors(first,second, ratio,rgb, cMap):
     a=getRandom(cMap[first][1])
     b=getRandom(cMap[second][1])
     d=getBaseColor(cMap[second])
-##    if a[len(a)-1]==b[0] and len(b)>1:
-##        c=a+" "+b
-##    else: 
     c=a+" "+b+" "+d
     resultName=c
     resultColor=rgb
@@ -224,7 +220,7 @@ def blendColors(first,second, ratio,rgb, cMap):
     A=Point(ci[0],ci[1],ci[2])
     B=Point(cj[0],cj[1],cj[2])
     dist=getPointDistance(A,B)
-    print first, second, ratio, dist, resultColor,resultName
+    #print first, second, ratio, dist, resultColor,resultName
     return {resultColor:set([resultName])}
     
 
