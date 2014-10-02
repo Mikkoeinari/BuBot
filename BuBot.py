@@ -3,6 +3,7 @@ import tweepy, time, sys, urllib2, random, math
 import matplotlib.pyplot as plt
 from keys import keys
 import colortools as ct
+from copy import deepcopy
 
 def login():
     CONSUMER_KEY = keys['consumer_key']
@@ -65,8 +66,8 @@ def readTweets(api, query):
     return api.search(query, lang='en')
 
 #update status
-def updateStatus(api, status):
-    api.update_status(status)
+def updateStatus(api, status, id=None):
+    api.update_status(status, id)
     
 #send private messages
 def sendPrivate(api, user, message):
@@ -88,28 +89,32 @@ def showColor(color1, color2):
 #initializes the data structure for the color names
 def initData():
     cMap=readColorMap("Veale's color map.csv", 2)
-    rMs=readReadymades("Veale's bracketed color bigrams.csv", cMap)
-    rMs=readReadymades("Veale's unbracketed color bigrams.csv", cMap)
+    oMap=deepcopy(cMap)
+    cMap=readReadymades("Veale's bracketed color bigrams.csv", cMap)
+    cMap=readReadymades("Veale's unbracketed color bigrams.csv", cMap)
     for i in cMap.keys():
         for j in cMap[i][1].keys():
             if cMap[i][1][j]==1 and len(cMap[i][1].keys())>2:
                 del cMap[i][1][j]
-    return cMap
+    return cMap, oMap
+
+def getOrigName(color, map):
+    return map[color][1].keys()[0]+" "+map[color][0]
 
 #main function
 if __name__ == "__main__":
     
-    cMap=initData()
+    [cMap, oMap]=initData()
+
     api=login()
     
     while 1==1:
         #Try to get the last tweet, name the color and send the color name as a private message.
         try:
-            latest=api.user_timeline(id="everycolorbot", count=1)
+            latest=api.user_timeline(id="everycolorbot", count=10)
             lastTweet=[]
             for status in latest:
                 lastTweet=status.text.split(' ')
-                
                 #Change rgb representation 0x to #
                 lastTweet[0]='#'+lastTweet[0][2:]
                 
@@ -118,15 +123,20 @@ if __name__ == "__main__":
                 
                 #wellness function, if color difference is too great or the distance of the blending colors
                 #or the blending ratio is too small skip the tweet
-                if colorDistance<2 and componentDistance<100:
-                    if ratio>0.2:
+                if colorDistance<1 and componentDistance<100 and ratio>0.2:
                         #get the color name
                         suggestion=ct.blendColors(color1,color2,ratio, blendedColor, cMap).values()[0].pop()
-                        print "Regarding your last tweet. I think the color looks a bit like "+ suggestion
+                        originals= getOrigName(color1, oMap)+" and " +getOrigName(color2,oMap)
+                        message="@everycolorbot "+"I think the color looks a bit like "+suggestion+ ". A mix of "+originals+"."
+                        print message
                         #comment the next line if you don't want to stop the bot from sending replys to ecb
-                        updateStatus(api, "@everycolorbot "+"Regarding your last tweet. I think the color looks a bit like "+ suggestion)
+                        updateStatus(api, message, status.id)
                         #uncomment the next line for sanitycheck
                         #showColor(ct.blendColors(color1,color2,ratio, blendedColor, cMap), {lastTweet[0]:'tweet'})
+                        break
+                else: 
+                    print "wellness not good :("
+
                         
         #in case of error, wait a minute and retry.
         except tweepy.error.TweepError as error: 
