@@ -205,10 +205,6 @@ def getBaseColor(lista):
     return lista[0]
     
 def blendColors(first,second, ratio,rgb, cMap):
-    if ratio>0.5:
-        tit=second
-        second=first
-        first=tit
     a=getRandom(cMap[first][1])
     b=getRandom(cMap[second][1])
     d=getBaseColor(cMap[second])
@@ -243,11 +239,16 @@ def getBlendOfColors(color, cMap):
             dist=getPointDistance(AxB,P)
             d1=getPointDistance(A, AxB)
             d2=getPointDistance(B, AxB)
-            if dist<bestDist and dist>0:
+            if dist<bestDist and dist>0 and (d2/(d1+d2)>0.2 or d2/(d1+d2)<0.8):
                 bestDist=dist
-                color1=i
-                color2=j
-                ratio= d2/(d1+d2)
+                if d2/(d1+d2)>d1/(d1+d2):
+                    color1=j
+                    color2=i
+                    ratio= d2/(d1+d2)
+                else:
+                    color1=i
+                    color2=j
+                    ratio= d1/(d1+d2)
                 blend= CIE2RGB([AxB.x, AxB.y,AxB.z])
                 #print color1, color2, ratio, dist
                 abDist=getPointDistance(A,B)

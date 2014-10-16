@@ -111,7 +111,7 @@ if __name__ == "__main__":
     while 1==1:
         #Try to get the last tweet, name the color and send the color name as a private message.
         try:
-            latest=api.user_timeline(id="everycolorbot", count=10)
+            latest=api.user_timeline(id="everycolorbot", count=1)
             lastTweet=[]
             for status in latest:
                 lastTweet=status.text.split(' ')
@@ -123,17 +123,23 @@ if __name__ == "__main__":
                 
                 #wellness function, if color difference is too great or the distance of the blending colors
                 #or the blending ratio is too small skip the tweet
-                if colorDistance<1 and componentDistance<100 and ratio>0.2:
+                if colorDistance<2 and componentDistance<100 and ratio>0.2 and ratio<0.8:
                         #get the color name
-                        suggestion=ct.blendColors(color1,color2,ratio, blendedColor, cMap).values()[0].pop()
+                        #white or black is never the defining color under these conditions, change that to the head.
+                        if oMap[color2][0]=='white' or oMap[color2][0]=='black':
+                            suggestion=ct.blendColors(color2,color1,ratio, blendedColor, cMap).values()[0].pop()
+                        else:   suggestion=ct.blendColors(color1,color2,ratio, blendedColor, cMap).values()[0].pop()
                         originals= getOrigName(color1, oMap)+" and " +getOrigName(color2,oMap)
-                        message="@everycolorbot "+"I think the color looks a bit like "+suggestion+ ". A mix of "+originals+"."
+                        #message="@everycolorbot "+"I think the color looks a bit like "+suggestion+ ". A mix of "+originals+"."
+                        message="This color is called "+suggestion+". RT: "+"@everycolorbot "+status.text
+                        print ratio
                         print message
                         #comment the next line if you don't want to stop the bot from sending replys to ecb
-                        updateStatus(api, message, status.id)
+                        #print checkIfTweetsStarred(api)
+                        updateStatus(api, message)
                         #uncomment the next line for sanitycheck
                         #showColor(ct.blendColors(color1,color2,ratio, blendedColor, cMap), {lastTweet[0]:'tweet'})
-                        break
+                        
                 else: 
                     print "wellness not good :("
 
@@ -145,7 +151,6 @@ if __name__ == "__main__":
             time.sleep(300)
             continue
         
-        #If succesful, wait for an hour and a half
-        for k in range(90):
-            time.sleep(60)
-            print 'tic %i' % k
+        #If succesful, wait for an hour
+        print "Napping..."
+        time.sleep(3600)
