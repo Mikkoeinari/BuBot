@@ -4,6 +4,10 @@ import matplotlib.pyplot as plt
 from keys import keys
 import colortools as ct
 from copy import deepcopy
+import atexit, pickle, sys, signal
+
+
+
 
 def login():
     CONSUMER_KEY = keys['consumer_key']
@@ -46,6 +50,7 @@ def readReadymades(readymades, cMap):
         line = next(f).rstrip().split("\t")
         for line in f:
             lines.append(line.rstrip().split("\t"))
+        #Pointer madness alert!!!
         for i in cMap.keys():
             for row in lines:
                 if row[0] in cMap[i][1].keys():
@@ -101,19 +106,65 @@ def initData():
 def getOrigName(color, map):
     return map[color][1].keys()[0]+" "+map[color][0]
 
+#functions to save status of the system when extiting
+def saveSystem(braglist, rtlist):
+    pickle.dump(braglist, open("braggedTweets.txt", "wb"))
+    pickle.dump(rtlist, open("reTweets.txt", "wb"))
+def initBragged():
+    try:
+        return pickle.load(open("braggedTweets.txt", "r"))
+    except(IOError):
+        print "no tweets bragged, continuing..."
+        return list()
+def initRetweeted():
+    try:
+        return pickle.load(open("reTweets.txt", "r"))
+    except(IOError):
+        print "no retweets, continuing..."
+        return list()
+    
+
 #main function
 if __name__ == "__main__":
     
     [cMap, oMap]=initData()
-
+    bragged=initBragged()
+    retweeted=initRetweeted()
     api=login()
-    
+    #signal handler
+    def signal_term_handler(signal, frame):
+        print 'got SIGTERM'
+        saveSystem(bragged, retweeted)
+        sys.exit(0)
+    signal.signal(signal.SIGINT, signal_term_handler)
+    signal.signal(signal.SIGTERM, signal_term_handler)
     while 1==1:
         #Try to get the last tweet, name the color and send the color name as a private message.
         try:
+            #get my statuses and see if i have favorited tweets
+            myTweets=api.user_timeline(count=100)
+            for status in myTweets:
+                #if my status is favorited more than once
+                if status.favorite_count>1 and status.id not in bragged:
+                    #Get the original tweet and the retweeted colour name from tweet.
+                    name=status.text.split("called ")[1].split(".")[0]
+                    ECBTweet=status.text.split("everycolorbot ")[1]
+                    #Compose a bragging message
+                    message="@everycolorbot I named your colour "+ECBTweet+" "+name+", and they like it!"
+                    print message
+                    #Update the list of bragged retweets
+                    bragged.append(status.id)
+                    #send private message to ECB
+                    updateStatus(api, message)
+                    
+                    
+            #Read latest tweet from ECB and see if that can be named
             latest=api.user_timeline(id="everycolorbot", count=1)
             lastTweet=[]
+            #for loop is not necessary anymore, i used it when i did test with more tweets.
             for status in latest:
+                #break if 
+                if status.id in retweeted: break
                 lastTweet=status.text.split(' ')
                 #Change rgb representation 0x to #
                 lastTweet[0]='#'+lastTweet[0][2:]
@@ -134,11 +185,13 @@ if __name__ == "__main__":
                         message="This color is called "+suggestion+". RT: "+"@everycolorbot "+status.text
                         print ratio
                         print message
+                        #save the status id into retweeted list
+                        retweeted.append(status.id)
                         #comment the next line if you don't want to stop the bot from sending replys to ecb
-                        #print checkIfTweetsStarred(api)
                         updateStatus(api, message)
+        
                         #uncomment the next line for sanitycheck
-                        #showColor(ct.blendColors(color1,color2,ratio, blendedColor, cMap), {lastTweet[0]:'tweet'})
+                        ##showColor(ct.blendColors(color1,color2,ratio, blendedColor, cMap), {lastTweet[0]:'tweet'})
                         
                 else: 
                     print "wellness not good :("
@@ -151,6 +204,11 @@ if __name__ == "__main__":
             time.sleep(300)
             continue
         
-        #If succesful, wait for an hour
+        #If succesful, wait for an hour+100 s. to avoid retweeting the same color twice.
         print "Napping..."
-        time.sleep(3600)
+        time.sleep(3700)
+    atexit.register(saveBragged, braglist=bragged, rtlist=retweeted)
+    
+
+ 
+    
