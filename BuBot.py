@@ -133,7 +133,7 @@ if __name__ == "__main__":
     api=login()
     #signal handler
     def signal_term_handler(signal, frame):
-        print 'got SIGTERM'
+        print 'Exiting...'
         saveSystem(bragged, retweeted)
         sys.exit(0)
     signal.signal(signal.SIGINT, signal_term_handler)
@@ -156,7 +156,8 @@ if __name__ == "__main__":
                     bragged.append(status.id)
                     #send private message to ECB
                     updateStatus(api, message)
-                    
+                    #if successful save the system
+                    saveSystem(bragged, retweeted)
                     
             #Read latest tweet from ECB and see if that can be named
             latest=api.user_timeline(id="everycolorbot", count=1)
@@ -189,7 +190,8 @@ if __name__ == "__main__":
                         retweeted.append(status.id)
                         #comment the next line if you don't want to stop the bot from sending replys to ecb
                         updateStatus(api, message)
-        
+                        #if successful, save the system
+                        saveSystem(bragged, retweeted)
                         #uncomment the next line for sanitycheck
                         ##showColor(ct.blendColors(color1,color2,ratio, blendedColor, cMap), {lastTweet[0]:'tweet'})
                         
